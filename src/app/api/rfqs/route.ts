@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     const ctx = await requireAuthUser({ requireCompany: true });
     const body = (await request.json()) as CreateRFQInput;
     const parsed = createRFQSchema.safeParse(body);
+    console.log("parsed Data::", parsed);
+
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid data", details: parsed.error.format() },

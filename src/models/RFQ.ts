@@ -11,8 +11,8 @@ export interface IRFQ extends Document {
   vendorName: string;
   remarks?: string;
   status: RFQStatus;
-  template: mongoose.Types.ObjectId;
-  columnConfig: mongoose.Types.ObjectId;
+  template?: mongoose.Types.ObjectId | null;
+  columnConfig?: mongoose.Types.ObjectId | null;
   vendorEmail?: string;
   vendorContact?: string;
   createdAt: Date;
@@ -41,12 +41,12 @@ const RFQSchema = new Schema<IRFQ>(
     template: {
       type: Schema.Types.ObjectId,
       ref: "Template",
-      required: true,
+      default: null,
     },
     columnConfig: {
       type: Schema.Types.ObjectId,
       ref: "RFQColumnConfig",
-      required: true,
+      default: null,
     },
     vendorEmail: { type: String },
     vendorContact: { type: String },
@@ -57,6 +57,9 @@ const RFQSchema = new Schema<IRFQ>(
 RFQSchema.index({ company: 1, status: 1, createdAt: -1 });
 RFQSchema.index({ company: 1, number: 1 }, { unique: true });
 
-export const RFQ: Model<IRFQ> =
-  mongoose.models.RFQ || mongoose.model<IRFQ>("RFQ", RFQSchema);
+if (mongoose.models.RFQ) {
+  delete mongoose.models.RFQ;
+}
+
+export const RFQ: Model<IRFQ> = mongoose.model<IRFQ>("RFQ", RFQSchema);
 

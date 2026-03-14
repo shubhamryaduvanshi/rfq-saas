@@ -43,7 +43,7 @@ export class RFQService {
       date: doc.date.toISOString(),
       vendorName: doc.vendorName,
       status: doc.status,
-      templateId: doc.template.toString(),
+      templateId: doc.template ? doc.template.toString() : "",
     }));
 
     return { data, total };
@@ -60,7 +60,7 @@ export class RFQService {
     })
       .populate("template")
       .populate("columnConfig")
-      .lean()
+      .lean({ virtuals: false })
       .exec();
 
     if (!rfq) return null;
@@ -70,42 +70,114 @@ export class RFQService {
       company: ctx.companyId,
     })
       .sort({ position: 1 })
-      .lean()
+      .lean({ virtuals: false })
       .exec();
 
-    return { rfq, items };
+    // Serialize ObjectIds to strings to avoid buffer objects in the client
+    return {
+      rfq: {
+        ...rfq,
+        _id: rfq._id.toString(),
+        company: rfq.company.toString(),
+        createdBy: rfq.createdBy?.toString() ?? null,
+        template: rfq.template ? (rfq.template as any)._id?.toString() ?? rfq.template.toString() : null,
+        columnConfig: rfq.columnConfig ? (rfq.columnConfig as any)._id?.toString() ?? rfq.columnConfig.toString() : null,
+      },
+      items: items.map((item) => ({
+        ...item,
+        _id: item._id.toString(),
+        company: item.company.toString(),
+        rfq: item.rfq.toString(),
+      })),
+    };
   }
 
-  static async createRFQ(ctx: AuthUserContext, input: CreateRFQInput) {
+  static async createRFQ(ctx: AuthUserContext, payload: CreateRFQInput) {
     await connectDB();
 
     if (!ctx.companyId) {
-      throw new Error("Company context is required to create RFQs.");
+      throw new Error("Company is required for adding Quotation");
     }
 
-    const number = generateRFQNumber(ctx.companyId);
+    const date = !Number.isNaN(Date.parse(payload.date))
+      ? new Date(payload.date)
+      : new Date();
 
-    const date =
-      input.date && !Number.isNaN(Date.parse(input.date))
-        ? new Date(input.date)
-        : new Date();
+    let lastError: unknown;
 
-    const rfq = await RFQ.create({
-      company: new Types.ObjectId(ctx.companyId),
-      createdBy: new Types.ObjectId(ctx.userId),
-      title: input.title,
-      number,
-      date,
-      vendorName: input.vendorName,
-      remarks: input.remarks ?? undefined,
-      status: "draft",
-      template: new Types.ObjectId(input.templateId),
-      columnConfig: new Types.ObjectId(input.columnConfigId),
-      vendorEmail: input.vendorEmail ?? undefined,
-      vendorContact: input.vendorContact ?? undefined,
-    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const number = generateRFQNumber(ctx.companyId);
 
-    return rfq;
+        const rfq: any = await RFQ.create({
+          company: new Types.ObjectId(ctx.companyId),
+          createdBy: new Types.ObjectId(ctx.userId),
+          title: payload.title,
+          number,
+          date,
+          vendorName: payload.vendorName,
+          remarks: payload.remarks ?? undefined,
+          status: "draft",
+          vendorEmail: payload.vendorEmail ?? undefined,
+          vendorContact: payload.vendorContact ?? undefined,
+          ...(payload.templateId && {
+            template: new Types.ObjectId(payload.templateId),
+          }),
+          ...(payload.columnConfigId && {
+            columnConfig: new Types.ObjectId(payload.columnConfigId),
+          }),
+        });
+
+        // if (payload.items && payload.items.length > 0) {
+        //   await RFQItem.insertMany(
+        //     payload.items.map((item) => ({
+        //       company: new Types.ObjectId(ctx.companyId!),
+        //       rfq: rfq._id,
+        //       position: item.position,
+        //       productName: item.productName,
+        //       imageUrl: item.imageUrl ?? undefined,
+        //       rate: item.rate,
+        //       quantity: item.quantity,
+        //       amount: item.amount,
+        //       remark: item.remark ?? undefined,
+        //       discount: item.discount,
+        //       finalAmount: item.finalAmount,
+        //     }))
+        //   );
+        // }
+
+        if (payload.items && payload.items.length > 0) {
+          await RFQItem.insertMany(
+            payload.items.map((item) => ({
+              company: new Types.ObjectId(ctx.companyId!),
+              rfq: rfq._id,
+              position: item.position,
+              values: {
+                productName: item.productName,
+                imageUrl: item.imageUrl ?? undefined,
+                rate: item.rate,
+                quantity: item.quantity,
+                amount: item.amount,
+                remark: item.remark ?? undefined,
+                discount: item.discount,
+                finalAmount: item.finalAmount,
+              },
+            }))
+          );
+        }
+        return rfq;
+      } catch (error: any) {
+        lastError = error;
+        if (error?.code === 11000) continue;
+        throw error;
+      }
+    }
+
+    throw new Error(
+      `Failed to generate unique RFQ number after several attempts: ${String(
+        (lastError as any)?.message ?? ""
+      )}`
+    );
   }
 
   static async updateRFQ(
@@ -128,13 +200,12 @@ export class RFQService {
         : new Date();
     }
     if (input.remarks !== undefined) update.remarks = input.remarks;
-    if (input.templateId !== undefined)
+    if (input.templateId !== undefined && input.templateId !== null)
       update.template = new Types.ObjectId(input.templateId);
-    if (input.columnConfigId !== undefined)
+    if (input.columnConfigId !== undefined && input.columnConfigId !== null)
       update.columnConfig = new Types.ObjectId(input.columnConfigId);
     if (input.vendorEmail !== undefined) update.vendorEmail = input.vendorEmail;
-    if (input.vendorContact !== undefined)
-      update.vendorContact = input.vendorContact;
+    if (input.vendorContact !== undefined) update.vendorContact = input.vendorContact;
     if (input.status !== undefined) update.status = input.status;
 
     const rfq = await RFQ.findOneAndUpdate(
@@ -142,6 +213,33 @@ export class RFQService {
       { $set: update },
       { new: true }
     ).exec();
+
+    if (!rfq) throw new Error("RFQ not found.");
+
+    // Replace all items if provided
+    if (input.items !== undefined) {
+      await RFQItem.deleteMany({ rfq: rfq._id, company: ctx.companyId }).exec();
+
+      if (input.items.length > 0) {
+        await RFQItem.insertMany(
+          input.items.map((item) => ({
+            company: new Types.ObjectId(ctx.companyId!),
+            rfq: rfq._id,
+            position: item.position,
+            values: {
+              productName: item.productName,
+              imageUrl: item.imageUrl ?? undefined,
+              rate: item.rate,
+              quantity: item.quantity,
+              amount: item.amount,
+              remark: item.remark ?? undefined,
+              discount: item.discount,
+              finalAmount: item.finalAmount,
+            },
+          }))
+        );
+      }
+    }
 
     return rfq;
   }
@@ -223,4 +321,3 @@ export class RFQService {
     return duplicate;
   }
 }
-

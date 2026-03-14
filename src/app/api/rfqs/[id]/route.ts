@@ -6,14 +6,15 @@ import {
 } from "@/lib/validators/rfq";
 import { RFQService } from "@/services/rfq-service";
 
-interface RouteParams {
-  params: { id: string };
-}
+
+type RouteParams = { params: Promise<{ id: string }> };
+
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const ctx = await requireAuthUser({ requireCompany: true });
-    const result = await RFQService.getRFQ(ctx, params.id);
+    const result = await RFQService.getRFQ(ctx, id);
     if (!result) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -29,6 +30,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const ctx = await requireAuthUser({ requireCompany: true });
     const body = (await request.json()) as UpdateRFQInput;
     const parsed = updateRFQSchema.safeParse(body);
@@ -39,7 +41,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    const rfq = await RFQService.updateRFQ(ctx, params.id, parsed.data);
+    const rfq = await RFQService.updateRFQ(ctx, id, parsed.data);
     if (!rfq) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -55,8 +57,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const ctx = await requireAuthUser({ requireCompany: true });
-    const rfq = await RFQService.deleteRFQ(ctx, params.id);
+    const rfq = await RFQService.deleteRFQ(ctx, id);
     if (!rfq) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }

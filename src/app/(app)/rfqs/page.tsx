@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAuthUser } from "@/lib/auth-context";
 import { RFQService } from "@/services/rfq-service";
+import { RFQListActions } from "@/features/rfq/components/RFQListActions";
 
 export default async function RFQListPage() {
   const ctx = await requireAuthUser({ requireCompany: true });
@@ -34,6 +35,7 @@ export default async function RFQListPage() {
                 <th className="px-3 py-2">Title</th>
                 <th className="px-3 py-2">Vendor</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -55,6 +57,9 @@ export default async function RFQListPage() {
                   </td>
                   <td className="px-3 py-2 align-middle text-xs uppercase text-zinc-500">
                     {rfq.status}
+                  </td>
+                  <td className="px-3 py-2 align-middle">
+                    <RFQListActions id={rfq.id} />
                   </td>
                 </tr>
               ))}
