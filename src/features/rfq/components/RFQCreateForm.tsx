@@ -334,7 +334,7 @@ export function RFQCreateForm({ ctx }: RFQCreateFormProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          {/* <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-zinc-700">
                 Internal notes (optional)
@@ -347,7 +347,7 @@ export function RFQCreateForm({ ctx }: RFQCreateFormProps) {
                 className="w-full resize-none rounded border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
               />
             </div>
-          </div>
+          </div> */}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -455,7 +455,7 @@ export function RFQCreateForm({ ctx }: RFQCreateFormProps) {
                           className="w-56 rounded border border-zinc-200 px-2 py-1 text-xs outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                         />
                       </td>
-                      {showImage && (
+                      {/* {showImage && (
                         <td className="border-r px-2 py-1.5 align-top">
                           <div className="flex flex-col gap-1">
                             <input
@@ -479,6 +479,40 @@ export function RFQCreateForm({ ctx }: RFQCreateFormProps) {
                                 Saved
                               </span>
                             )}
+                          </div>
+                        </td>
+                      )} */}
+                      {showImage && (
+                        <td className="border-r px-2 py-1.5 align-top">
+                          <div className="flex flex-col gap-1">
+                            {uploadingImageRow === item.id && (
+                              <span className="text-[10px] text-zinc-500">Uploading…</span>
+                            )}
+
+                            {item.imageUrl && uploadingImageRow !== item.id ? (
+                              <div className="relative h-14 w-14">
+                                <img
+                                  src={item.imageUrl}
+                                  alt="Preview"
+                                  className="h-14 w-14 rounded border border-zinc-200 object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, { imageUrl: "" })}
+                                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-800 text-[10px] text-white hover:bg-red-500"
+                                  aria-label="Remove image"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ) : <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) =>
+                                handleImageUpload(item.id, e.target.files?.[0] ?? null)
+                              }
+                              className="w-52 text-[11px] text-zinc-700 file:mr-2 file:rounded file:border-none file:bg-zinc-900 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white"
+                            />}
                           </div>
                         </td>
                       )}

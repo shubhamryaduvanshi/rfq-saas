@@ -19,8 +19,8 @@ export function AppShell({ user, children }: AppShellProps) {
           </div>
         </div>
       </header>
-      <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
-        <nav className="w-48 shrink-0 space-y-2 text-sm">
+      <div className="mx-auto flex max-w-7xl gap-6 p-4">
+        <nav className="w-48 shrink-0 space-y-2 text-sm bg-blue-300 rounded-2xl min-h-[85vh] p-4">
           <Link href="/dashboard" className="block text-zinc-800">
             Dashboard
           </Link>
@@ -30,12 +30,12 @@ export function AppShell({ user, children }: AppShellProps) {
           <Link href="/settings/company" className="block text-zinc-800">
             Company
           </Link>
-          <Link href="/settings/templates" className="block text-zinc-800">
+          {/* <Link href="/settings/templates" className="block text-zinc-800">
             Templates
           </Link>
           <Link href="/settings/profile" className="block text-zinc-800">
             Profile
-          </Link>
+          </Link> */}
         </nav>
         <main className="flex-1">{children}</main>
       </div>

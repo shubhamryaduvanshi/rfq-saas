@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { companySchema } from "@/lib/validators/company";
 import { upsertCompanyAction } from "@/features/company/actions";
+import { useRouter } from "next/navigation";
 
 interface CompanyFormProps {
   initial?: Partial<ReturnType<typeof companySchema["parse"]>>;
@@ -11,6 +12,7 @@ interface CompanyFormProps {
 export function CompanyForm({ initial }: CompanyFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,12 +47,15 @@ export function CompanyForm({ initial }: CompanyFormProps) {
     setLoading(true);
     try {
       const res = await upsertCompanyAction(parsed.data);
-      if (!res?.success) {
+      console.log("response is::", res);
+      if (res?.success === false) {
         setError(res?.error ?? "Failed to save company.");
-        setLoading(false);
+        return;
       }
+      router.push('/dashboard')
     } catch {
       setError("Failed to save company.");
+    } finally {
       setLoading(false);
     }
   }
@@ -126,7 +131,7 @@ export function CompanyForm({ initial }: CompanyFormProps) {
           <label className="block text-sm font-medium mb-1">Website</label>
           <input
             name="website"
-            defaultValue={initial?.website}
+            defaultValue={initial?.website ?? ""}
             className="w-full rounded border px-3 py-2"
           />
         </div>
@@ -137,7 +142,7 @@ export function CompanyForm({ initial }: CompanyFormProps) {
           <label className="block text-sm font-medium mb-1">Tagline</label>
           <input
             name="tagline"
-            defaultValue={initial?.tagline}
+            defaultValue={initial?.tagline ?? ''}
             className="w-full rounded border px-3 py-2"
           />
         </div>
@@ -145,7 +150,7 @@ export function CompanyForm({ initial }: CompanyFormProps) {
           <label className="block text-sm font-medium mb-1">Logo URL</label>
           <input
             name="logoUrl"
-            defaultValue={initial?.logoUrl}
+            defaultValue={initial?.logoUrl ?? ''}
             className="w-full rounded border px-3 py-2"
           />
         </div>
@@ -157,7 +162,7 @@ export function CompanyForm({ initial }: CompanyFormProps) {
         </label>
         <textarea
           name="paymentDetails"
-          defaultValue={initial?.paymentDetails}
+          defaultValue={initial?.paymentDetails ?? ''}
           className="w-full rounded border px-3 py-2"
           rows={3}
         />
