@@ -4,13 +4,15 @@ import { requireAuthUser } from "@/lib/auth-context";
 import { RFQService } from "@/services/rfq-service";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
+
     const ctx = await requireAuthUser({ requireCompany: true });
-    const data = await RFQService.getRFQ(ctx, params.id);
+    const data = await RFQService.getRFQ(ctx, id);
 
     if (!data) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -39,7 +41,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         reject(err);
       });
 
-      doc.fontSize(18).text(`RFQ ${rfq.number}`, { bold: true });
+      doc.fontSize(18).text(`RFQ ${rfq.number}`);
       doc.moveDown(0.5);
       doc.fontSize(12).text(rfq.title);
       doc.moveDown();
@@ -53,8 +55,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         doc.text(`Contact: ${rfq.vendorContact}`);
       }
       doc.text(
-        `Date: ${
-          rfq.date instanceof Date ? rfq.date.toISOString() : String(rfq.date)
+        `Date: ${rfq.date instanceof Date ? rfq.date.toISOString() : String(rfq.date)
         }`
       );
       doc.text(`Status: ${rfq.status}`);
@@ -149,8 +150,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
       doc.end();
     });
-
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

@@ -4,13 +4,14 @@ import { requireAuthUser } from "@/lib/auth-context";
 import { RFQService } from "@/services/rfq-service";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const ctx = await requireAuthUser({ requireCompany: true });
-    const data = await RFQService.getRFQ(ctx, params.id);
+    const data = await RFQService.getRFQ(ctx, id);
 
     if (!data) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
